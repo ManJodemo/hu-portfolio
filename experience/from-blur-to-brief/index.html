@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>从模糊到简报 - Calm Workspace</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ==========================================================================
+           1. CSS 变量 (Variables) 
+           ========================================================================== */
+        :root {
+            /* 颜色系统 - Calm Workspace */
+            --bg-color: #F2F2EF;
+            --surface-color: #FAFAF8;
+            --rail-bg: #EAEAE5;
+            --primary-text: #171715;
+            --secondary-text: #676762;
+            --muted-text: #8A8A84;
+            --border-color: #D6D6D0;
+            --border-strong: #AFAFA8;
+            
+            --accent: #C24E36;
+            --accent-hover: #A63D29;
+            --accent-pressed: #84301F;
+            
+            --success: #397257;
+            --error: #B64235;
+
+            /* 字体排版 */
+            --font-display: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+            --font-body: 'Inter', 'Noto Sans SC', sans-serif;
+            
+            /* UI 元素 */
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            
+            /* 动效系统 */
+            --motion-press: 90ms;
+            --motion-ui: 180ms;
+            --motion-page: 720ms;
+
+            --ease-push: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-press: cubic-bezier(0.4, 0, 1, 1);
+            --ease-ui: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ==========================================================================
+           2. 基础重置与排版
+           ========================================================================== */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg-color);
+            color: var(--primary-text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            overflow: hidden; /* 由内部容器控制滚动 */
+        }
+
+        h1, h2, h3, h4, h5, .font-display {
+            font-family: var(--font-display);
+            font-weight: 600;
+            color: var(--primary-text);
+        }
+
+        .h-display { font-size: clamp(3rem, 4vw, 3.75rem); letter-spacing: -0.02em; font-weight: 700; margin-bottom: 0.5rem; }
+        .h-h1 { font-size: clamp(1.75rem, 2.5vw, 2.25rem); letter-spacing: -0.01em; margin-bottom: 1.5rem; }
+        .h-h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+        .h-h3 { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.75rem; }
+        .t-body { font-size: 1.0625rem; color: var(--secondary-text); }
+        .t-label { font-size: 0.8125rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-text); margin-bottom: 0.5rem;}
+
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+        /* ==========================================================================
+           3. 全局布局 (App Shell)
+           ========================================================================== */
+        .app-header {
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+            background: var(--surface-color); border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; z-index: 100;
+        }
+
+        .header-logo { font-family: var(--font-display); font-weight: 700; font-size: 1.125rem; }
+        .header-actions { display: flex; gap: 1rem; align-items: center; font-size: 0.875rem; font-weight: 500; color: var(--secondary-text); }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: 280px minmax(0, 1fr);
+            height: calc(100vh - 60px);
+            margin-top: 60px;
+        }
+
+        /* 持续结果轨道 (Result Rail) */
+        .result-rail {
+            background: var(--rail-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            transition: opacity var(--motion-page) var(--ease-push), transform var(--motion-page) var(--ease-push);
+            will-change: transform, opacity;
+        }
+
+        .rail-block {
+            padding: 0.75rem;
+            border-radius: var(--radius-sm);
+            margin: -0.75rem;
+            border: 1px solid transparent;
+        }
+
+        .rail-title { font-size: 0.75rem; font-family: var(--font-display); color: var(--muted-text); margin-bottom: 0.25rem; }
+        .rail-content { font-size: 0.9375rem; font-weight: 500; color: var(--primary-text); }
+        .rail-empty { color: var(--muted-text); font-weight: 400; font-style: italic; }
+
+        /* 工作区舞台 (Stage Viewport) */
+        .stage-viewport {
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+            background: var(--surface-color);
+        }
+
+        .stage {
+            position: absolute;
+            inset: 0;
+            overflow-y: auto;
+            padding: 4rem 4rem 6rem;
+            display: none;
+            will-change: transform, opacity;
+            backface-visibility: hidden;
+            transform: translateZ(0);
+        }
+
+        /* 内部内容最大宽度约束 */
+        .stage-inner {
+            max-width: 960px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* ==========================================================================
+           4. 交互组件
+           ========================================================================== */
+        /* Buttons */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0.75rem 1.5rem; border-radius: var(--radius-sm);
+            font-family: var(--font-body); font-size: 0.9375rem; font-weight: 500;
+            cursor: pointer; border: 1px solid transparent;
+            transition: background var(--motion-ui), border var(--motion-ui), color var(--motion-ui), opacity var(--motion-ui);
+            user-select: none;
+            will-change: transform;
+        }
+        .btn:active:not(:disabled) { transform: scale(0.975); transition: transform var(--motion-press) var(--ease-press); }
+        
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+        .btn-primary:disabled { background: var(--border-strong); color: var(--surface-color); cursor: not-allowed; opacity: 0.5; }
+        
+        .btn-secondary { background: transparent; border-color: var(--border-strong); color: var(--primary-text); }
+        .btn-secondary:hover:not(:disabled) { background: var(--surface-color); border-color: var(--primary-text); }
+
+        /* Step 1 Idea Form Optimization */
+        .idea-form {
+            max-width: 800px;
+            margin: 40px auto 0;
+            text-align: left;
+        }
+        
+        textarea {
+            width: 100%; display: block;
+            background: var(--bg-color); border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); padding: 1.5rem;
+            font-family: var(--font-body); font-size: 1.125rem; color: var(--primary-text);
+            resize: vertical; min-height: 160px; transition: border-color var(--motion-ui);
+            margin-bottom: 0;
+        }
+        textarea:focus { outline: none; border-color: var(--primary-text); }
+
+        .idea-form-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            margin-top: 22px;
+        }
+
+        .input-hint {
+            max-width: 460px;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: var(--muted-text);
+        }
+
+        /* Cards */
+        .directions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+        .card {
+            background: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); padding: 1.5rem; cursor: pointer;
+            position: relative; display: flex; flex-direction: column;
+            transition: border-color var(--motion-ui), opacity var(--motion-ui);
+            will-change: transform;
+        }
+        .card:active { transform: scale(0.98); transition: transform var(--motion-press) var(--ease-press); }
+        .card:hover:not(.selected) { border-color: var(--border-strong); }
+        .card.selected { border-color: var(--primary-text); background: var(--bg-color); }
+        
+        .card-tag {
+            position: absolute; top: 1rem; right: 1rem; font-size: 0.75rem; font-weight: 600;
+            color: var(--primary-text); text-transform: uppercase; opacity: 0;
+            transform: translateY(4px); transition: all var(--motion-ui) var(--ease-ui);
+        }
+        .card.selected .card-tag { opacity: 1; transform: translateY(0); }
+        .directions-grid.has-selected .card:not(.selected) { opacity: 0.6; filter: grayscale(20%); }
+
+        /* Mini Preview (纯 CSS) */
+        .mini-preview {
+            width: 100%; height: 60px; border-radius: var(--radius-sm);
+            margin-bottom: 1.25rem; position: relative; border: 1px solid var(--border-color);
+            transition: transform var(--motion-ui) var(--ease-ui);
+        }
+        .card.selected .mini-preview { transform: translateY(-2px); border-color: var(--border-strong); }
+        .mp-ed { background: repeating-linear-gradient(90deg, transparent, transparent 19px, var(--border-color) 20px); }
+        .mp-hu { background: var(--surface-color); display:flex; gap: 8px; padding: 10px; align-items:flex-end; }
+        .mp-hu::before { content:''; width: 30%; height: 20px; background: #e8e6e1; border-radius: 2px;}
+        .mp-hu::after { content:''; width: 50%; height: 30px; background: #e8e6e1; border-radius: 2px;}
+        .mp-ex { background: var(--primary-text); overflow: hidden;}
+        .mp-ex::after { content:''; position: absolute; width: 120%; height: 20px; background: var(--accent); transform: rotate(-5deg); top: 20px; left: -10px;}
+
+        /* Tags */
+        .tags-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem;}
+        .tag {
+            padding: 0.4rem 0.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+            font-size: 0.875rem; cursor: pointer; background: var(--surface-color); color: var(--secondary-text);
+            transition: all var(--motion-ui) var(--ease-ui); user-select: none;
+            will-change: transform;
+        }
+        .tag:hover { border-color: var(--primary-text); color: var(--primary-text); }
+        .tag:active { transform: scale(0.975); transition: transform var(--motion-press) var(--ease-press); }
+        
+        .tag.active { background: var(--primary-text); color: var(--surface-color); border-color: var(--primary-text); }
+        .tag.avoid.active { background: var(--surface-color); color: var(--accent); border-color: var(--accent); }
+        .tag.avoid.active::before { content: "— "; font-weight: bold; margin-right: 4px; }
+
+        /* ==========================================================================
+           5. Intent Map (ScaleX Base)
+           ========================================================================== */
+        .intent-row { display: flex; align-items: center; margin-bottom: 0.75rem; position: relative; }
+        .intent-label { width: 70px; font-size: 0.8125rem; font-weight: 500; color: var(--primary-text); }
+        .intent-track { flex: 1; height: 6px; background: var(--border-color); border-radius: 3px; overflow: hidden; margin-right: 1rem; }
+        .intent-fill { 
+            height: 100%; background: var(--primary-text); border-radius: 3px;
+            transform-origin: left center; transform: scaleX(0.5); will-change: transform; 
+        }
+        .intent-val { width: 28px; text-align: right; font-family: var(--font-display); font-size: 0.875rem; font-weight: 600; }
+        .intent-delta { position: absolute; right: 40px; top: -14px; font-size: 0.75rem; font-weight: 600; font-family: var(--font-display); opacity: 0; pointer-events: none; }
+        .intent-delta.pos { color: var(--success); }
+        .intent-delta.neg { color: var(--accent); }
+
+        /* Rail 内紧凑版 Intent Map */
+        .rail-intent-row { display: flex; align-items: center; margin-bottom: 0.5rem; }
+        .rail-intent-label { width: 60px; font-size: 0.75rem; color: var(--secondary-text); }
+        .rail-intent-track { flex: 1; height: 4px; background: var(--border-color); border-radius: 2px; overflow: hidden; margin-right: 0.5rem; }
+        .rail-intent-fill { height: 100%; background: var(--primary-text); transform-origin: left center; transform: scaleX(0.5); will-change: transform; }
+        .rail-intent-val { width: 20px; text-align: right; font-size: 0.75rem; font-family: var(--font-display); font-weight: 600;}
+
+        /* ==========================================================================
+           6. Step 3 & Loading
+           ========================================================================== */
+        .step3-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
+        
+        .slider-labels { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--secondary-text); margin-bottom: 0.5rem; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin-bottom: 1rem; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: var(--primary-text); cursor: pointer; margin-top: -6px; border: 2px solid var(--surface-color);
+            box-shadow: 0 0 0 1px var(--border-strong); transition: transform var(--motion-press) var(--ease-press);
+        }
+        input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: var(--border-color); border-radius: 2px; }
+
+        .choice-grid { display: grid; grid-template-columns: 1fr; gap: 0.5rem; margin-top: 1rem; }
+        .choice-card {
+            border: 1px solid var(--border-color); padding: 1rem; text-align: left;
+            cursor: pointer; border-radius: var(--radius-sm); font-size: 0.9375rem;
+            transition: border-color var(--motion-ui) var(--ease-ui), background var(--motion-ui);
+            will-change: transform;
+        }
+        .choice-card:hover { border-color: var(--border-strong); background: var(--bg-color); }
+        .choice-card:active { transform: scale(0.98); transition: transform var(--motion-press) var(--ease-press); }
+        .choice-card.active { border-color: var(--primary-text); background: var(--primary-text); color: var(--surface-color); }
+
+        .question-context {
+            margin-bottom: 1.25rem;
+            padding: 12px 14px;
+            border-left: 2px solid var(--accent);
+            background: var(--bg-color);
+            font-size: 0.875rem;
+            color: var(--secondary-text);
+        }
+
+        .clarification-history-item {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 10px 0;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.8125rem;
+        }
+
+        .clarification-history-item span:first-child { color: var(--muted-text); }
+        .clarification-history-item strong { text-align: right; font-weight: 600; }
+
+        .question-variable {
+            display: inline-block;
+            margin-bottom: 0.6rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Loading */
+        .loading-track { display: flex; flex-direction: column; gap: 1rem; margin-top: 2rem; max-width: 400px; }
+        .loading-step { display: flex; align-items: center; gap: 1rem; opacity: 0.4; transition: opacity var(--motion-ui); }
+        .loading-step.active { opacity: 1; }
+        .loading-step.completed { opacity: 0.6; }
+        .l-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border-strong); transition: all var(--motion-ui); }
+        .loading-step.active .l-dot { border-color: var(--primary-text); background: var(--primary-text); }
+        .loading-step.completed .l-dot { border-color: var(--primary-text); background: transparent; }
+
+        /* ==========================================================================
+           7. Final Brief & Actions
+           ========================================================================== */
+        .result-toolbar {
+            margin-top: 24px;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-color);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+        .result-status { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .result-status-dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--success); }
+        .result-status strong { display: block; margin-bottom: 2px; font-size: 0.9375rem; }
+        .result-status span { display: block; font-size: 0.8125rem; color: var(--secondary-text); }
+        .result-toolbar-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+
+        .brief-layout { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 24px; align-items: start; }
+        .document-box { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 2rem; }
+        .document-box h3 { font-family: var(--font-display); font-size: 1.125rem; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        .document-box h3:first-child { margin-top: 0; }
+        .document-box ul { padding-left: 1.25rem; font-size: 0.9375rem; color: var(--secondary-text); margin-bottom: 1rem; }
+        .document-box p { font-size: 0.9375rem; margin-bottom: 1rem; }
+
+        .goal-summary { margin-bottom: 10px; font-size: 1rem; line-height: 1.65; color: var(--primary-text); }
+        .goal-direction { margin-bottom: 14px; font-size: 0.875rem; color: var(--secondary-text); }
+        .original-input { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color); }
+        .original-input summary { cursor: pointer; font-size: 0.8125rem; font-weight: 500; color: var(--secondary-text); }
+        .original-input p { margin-top: 12px; margin-bottom: 0; color: var(--secondary-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+        .brief-meta-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0 20px; }
+        .brief-meta-item { padding: 12px; border: 1px solid var(--border-color); background: var(--bg-color); border-radius: var(--radius-sm); }
+        .brief-meta-label { display: block; margin-bottom: 4px; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-text); }
+        .brief-meta-item strong { font-size: 0.875rem; }
+
+        .constraint-group { margin-bottom: 14px; }
+        .constraint-label { display: block; margin-bottom: 8px; font-size: 0.75rem; font-weight: 600; color: var(--secondary-text); }
+        .constraint-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .constraint-tag { padding: 4px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-color); font-size: 0.75rem; color: var(--primary-text); }
+        .constraint-tag-avoid { border-color: rgba(194, 78, 54, 0.35); color: var(--accent); }
+        .constraint-empty { font-size: 0.8125rem; color: var(--muted-text); }
+
+        .document-box-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+        .document-box-header h3 { margin: 0; padding: 0; border: none; }
+        .btn-small { padding: 0.35rem 0.75rem; font-size: 0.8125rem; }
+
+        pre {
+            background: var(--bg-color); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);
+            overflow-x: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; line-height: 1.5; color: var(--primary-text);
+            max-height: 460px; overflow-y: auto;
+        }
+
+        .toast {
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: var(--primary-text); color: var(--surface-color); padding: 0.5rem 1.25rem;
+            border-radius: var(--radius-sm); font-size: 0.875rem; opacity: 0; pointer-events: none;
+            transition: all var(--motion-ui) var(--ease-ui); z-index: 1000;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .app-shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; margin-top: 60px; height: auto; }
+            .result-rail { border-right: none; border-bottom: 1px solid var(--border-color); padding: 1rem; flex-direction: row; flex-wrap: wrap; gap: 1rem; max-height: 200px; overflow-y: auto;}
+            .rail-block { width: calc(50% - 0.5rem); margin: 0; padding: 0; border: none; }
+            .stage { padding: 2rem 1.5rem; }
+            .directions-grid { grid-template-columns: 1fr; }
+            .step3-layout, .brief-layout { grid-template-columns: 1fr; gap: 2rem; }
+            
+            .result-toolbar { flex-direction: column; align-items: stretch; }
+            .result-status { align-items: flex-start; }
+            .result-toolbar-actions { display: grid; grid-template-columns: 1fr; }
+            .result-toolbar-actions .btn { width: 100%; }
+            .brief-meta-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 640px) {
+            .idea-form-footer { flex-direction: column; align-items: stretch; }
+            .idea-form-footer .btn { width: 100%; }
+            .input-hint { text-align: center; max-width: 100%; }
+        }
+    </style>
+
+<style id="portfolio-return-style">
+.portfolio-return{
+  position:fixed;right:20px;bottom:20px;z-index:99999;
+  padding:11px 16px;border-radius:999px;
+  background:rgba(8,9,8,.88);color:#F1F1ED;
+  border:1px solid rgba(255,255,255,.18);
+  font:500 12px/1 "Helvetica Neue","PingFang SC",Arial,sans-serif;
+  letter-spacing:.06em;text-decoration:none;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.portfolio-return:hover{background:#C8F060;color:#080908;border-color:#C8F060}
+</style>
+</head>
+<body><a class="portfolio-return" href="../../projects/from-blur-to-brief/">← 返回项目说明</a>
+
+    <header class="app-header">
+        <div class="header-logo">从模糊到简报</div>
+        <div class="header-actions">
+            <span>演示模式</span>
+            <span>连接 AI</span>
+        </div>
+    </header>
+
+    <div class="app-shell">
+        
+        <aside class="result-rail" id="result-rail">
+            <div class="rail-block" id="rail-b-idea">
+                <div class="rail-title">01 初始想法</div>
+                <div class="rail-content rail-empty" id="r-idea">尚未输入</div>
+            </div>
+            
+            <div class="rail-block" id="rail-b-dir">
+                <div class="rail-title">02 基准方向</div>
+                <div class="rail-content rail-empty" id="r-dir">尚未选择</div>
+            </div>
+
+            <div class="rail-block" id="rail-b-keep">
+                <div class="rail-title">03 必须保留</div>
+                <div class="rail-content rail-empty" id="r-keep">无</div>
+            </div>
+
+            <div class="rail-block" id="rail-b-avoid">
+                <div class="rail-title">04 避免使用</div>
+                <div class="rail-content rail-empty" id="r-avoid">无</div>
+            </div>
+
+            <div class="rail-block" id="rail-b-intent">
+                <div class="rail-title">05 当前意图</div>
+                <div class="rail-content">
+                    <div class="rail-intent-row"><span class="rail-intent-label">结构</span><div class="rail-intent-track"><div class="rail-intent-fill" id="ri-s"></div></div><span class="rail-intent-val" id="rv-s">50</span></div>
+                    <div class="rail-intent-row"><span class="rail-intent-label">温度</span><div class="rail-intent-track"><div class="rail-intent-fill" id="ri-w"></div></div><span class="rail-intent-val" id="rv-w">50</span></div>
+                    <div class="rail-intent-row"><span class="rail-intent-label">表现力</span><div class="rail-intent-track"><div class="rail-intent-fill" id="ri-e"></div></div><span class="rail-intent-val" id="rv-e">50</span></div>
+                </div>
+            </div>
+
+            <div class="rail-block" id="rail-b-prog">
+                <div class="rail-title">06 当前进度</div>
+                <div class="rail-content" id="r-prog">第 1 步 / 共 4 步</div>
+            </div>
+        </aside>
+
+        <main class="stage-viewport">
+            
+            <section class="stage" id="step-1" style="display: block;">
+                <div class="stage-inner">
+                    <div style="max-width: 800px; margin: 0 auto; width: 100%; text-align: center;">
+                        <h1 class="h-display stagger-1">从模糊到简报</h1>
+                        <p class="t-body stagger-1" style="margin-bottom: 0; font-size: 1.125rem;">将模糊的网页想法转化为 Vibe Coding 的清晰方向。</p>
+                    </div>
+                    
+                    <div class="idea-form stagger-2">
+                        <textarea id="idea-input" placeholder="告诉我们你想做一个什么东西。现在还不清晰也没关系... (例如: 我想要一个电商网站，风格极简且专业)"></textarea>
+                        
+                        <div class="idea-form-footer stagger-3">
+                            <span class="input-hint">不需要一次说清楚，先写下你目前知道的部分。</span>
+                            <button class="btn btn-primary" id="btn-explore" disabled onclick="submitStep1()">探索方向</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="stage" id="step-2">
+                <div class="stage-inner">
+                    <h2 class="h-h1 stagger-1">选择一个基准方向</h2>
+                    
+                    <div class="directions-grid stagger-2" id="directions-grid">
+                        <div class="card" role="button" tabindex="0" onkeydown="handleA11y(event, this)" onclick="selectDirection('editorial', this)">
+                            <span class="card-tag">已选</span>
+                            <div class="mini-preview mp-ed"></div>
+                            <h3 class="h-h3 font-display card-title">编辑式科技</h3>
+                            <p class="t-body" style="font-size:0.875rem;">克制、以排版为导向，具有强烈的网格感和极简的动效。</p>
+                        </div>
+                        
+                        <div class="card" role="button" tabindex="0" onkeydown="handleA11y(event, this)" onclick="selectDirection('human', this)">
+                            <span class="card-tag">已选</span>
+                            <div class="mini-preview mp-hu"></div>
+                            <h3 class="h-h3 font-display card-title">人文数字</h3>
+                            <p class="t-body" style="font-size:0.875rem;">清晰的数字结构，通过温暖的色彩和响应式反馈进行柔化。</p>
+                        </div>
+
+                        <div class="card" role="button" tabindex="0" onkeydown="handleA11y(event, this)" onclick="selectDirection('expressive', this)">
+                            <span class="card-tag">已选</span>
+                            <div class="mini-preview mp-ex"></div>
+                            <h3 class="h-h3 font-display card-title">张力界面</h3>
+                            <p class="t-body" style="font-size:0.875rem;">大胆的界面，具有动态过渡和分层视觉标识。</p>
+                        </div>
+                    </div>
+
+                    <div class="stagger-3">
+                        <div class="t-label">保留特征</div>
+                        <div class="tags-container" id="keep-tags">
+                            <div class="tag" role="button" tabindex="0" data-id="keep_grid" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'keep')">编辑式网格</div>
+                            <div class="tag" role="button" tabindex="0" data-id="keep_warm" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'keep')">暖色调</div>
+                            <div class="tag" role="button" tabindex="0" data-id="keep_motion" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'keep')">响应式动效</div>
+                            <div class="tag" role="button" tabindex="0" data-id="keep_typo" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'keep')">醒目排版</div>
+                            <div class="tag" role="button" tabindex="0" data-id="keep_minimal" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'keep')">极简装饰</div>
+                            <div class="tag" role="button" tabindex="0" data-id="keep_personal" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'keep')">个人细节</div>
+                        </div>
+
+                        <div class="t-label">避免使用</div>
+                        <div class="tags-container" id="avoid-tags">
+                            <div class="tag avoid" role="button" tabindex="0" data-id="avoid_gradient" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'avoid')">蓝紫渐变</div>
+                            <div class="tag avoid" role="button" tabindex="0" data-id="avoid_particles" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'avoid')">粒子效果</div>
+                            <div class="tag avoid" role="button" tabindex="0" data-id="avoid_glass" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'avoid')">玻璃拟态</div>
+                            <div class="tag avoid" role="button" tabindex="0" data-id="avoid_rounded" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'avoid')">过度圆角</div>
+                            <div class="tag avoid" role="button" tabindex="0" data-id="avoid_ai" onkeydown="handleA11y(event, this)" onclick="toggleTag(this, 'avoid')">常见 AI 风格</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stagger-4" style="margin-top: 2rem;">
+                        <button class="btn btn-primary" id="btn-continue-2" disabled onclick="submitStep2()">继续</button>
+                        <button class="btn btn-secondary" style="margin-left: 0.5rem;" onclick="transitionStage('step-2', 'step-1', 'backward')">返回</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="stage" id="step-3">
+                <div class="stage-inner">
+                    <div class="stagger-1" style="display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:2rem;">
+                        <div>
+                            <div class="t-label" id="clarify-progress">Question 01 / 03</div>
+                            <h2 class="h-h1" style="margin-bottom:0;">澄清关键变量</h2>
+                        </div>
+                        <div class="t-body" style="font-size:0.875rem; max-width:360px; text-align:right;">
+                            只补充当前输入里最重要、但尚未明确的三个变量。
+                        </div>
+                    </div>
+
+                    <div class="step3-layout">
+                        <div class="stagger-2">
+                            <div id="dynamic-question-container"></div>
+                            <div id="clarification-history" style="margin-top:2rem;"></div>
+                        </div>
+
+                        <div class="stagger-3">
+                            <div class="t-label" style="margin-bottom:1.5rem;">全局意图映射</div>
+                            <div class="intent-row"><span class="intent-label">结构</span><div class="intent-track"><div class="intent-fill" id="im-s"></div></div><span class="intent-val" id="iv-s">50</span><span class="intent-delta" id="id-s"></span></div>
+                            <div class="intent-row"><span class="intent-label">温度</span><div class="intent-track"><div class="intent-fill" id="im-w"></div></div><span class="intent-val" id="iv-w">50</span><span class="intent-delta" id="id-w"></span></div>
+                            <div class="intent-row"><span class="intent-label">表现力</span><div class="intent-track"><div class="intent-fill" id="im-e"></div></div><span class="intent-val" id="iv-e">50</span><span class="intent-delta" id="id-e"></span></div>
+                            <div class="intent-row"><span class="intent-label">动效</span><div class="intent-track"><div class="intent-fill" id="im-m"></div></div><span class="intent-val" id="iv-m">50</span><span class="intent-delta" id="id-m"></span></div>
+                            <div class="intent-row"><span class="intent-label">视觉密度</span><div class="intent-track"><div class="intent-fill" id="im-d"></div></div><span class="intent-val" id="iv-d">50</span><span class="intent-delta" id="id-d"></span></div>
+
+                            <div style="margin-top:3rem;">
+                                <button class="btn btn-primary" id="btn-next-question" disabled onclick="submitClarificationAnswer()">下一题</button>
+                                <button class="btn btn-secondary" id="btn-generate" style="display:none;" onclick="submitStep3()">生成需求简报</button>
+                                <button class="btn btn-secondary" style="margin-left:0.5rem;" onclick="transitionStage('step-3', 'step-2', 'backward')">返回</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="stage" id="step-loading">
+                <div class="stage-inner">
+                    <h2 class="h-h1 stagger-1">处理与收束</h2>
+                    <p class="t-body stagger-1" id="loading-desc">正在将当前状态加工为最终简报...</p>
+                    
+                    <div class="loading-track stagger-2">
+                        <div class="loading-step" id="load-1"><div class="l-dot"></div><span>澄清用户意图</span></div>
+                        <div class="loading-step" id="load-2"><div class="l-dot"></div><span>整理偏好与约束</span></div>
+                        <div class="loading-step" id="load-3"><div class="l-dot"></div><span>构建数据映射</span></div>
+                        <div class="loading-step" id="load-4"><div class="l-dot"></div><span>生成执行简报</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="stage" id="step-4">
+                <div class="stage-inner">
+                    <h1 class="h-h1 stagger-1" style="margin-bottom: 0.5rem;">简报已就绪</h1>
+                    <p class="t-body stagger-1" style="margin-bottom: 0;">信息已结构化，可直接交给 AI 编程助手使用。</p>
+
+                    <div class="result-toolbar stagger-2">
+                        <div class="result-status">
+                            <span class="result-status-dot" aria-hidden="true"></span>
+                            <div>
+                                <strong>Ready to build</strong>
+                                <span>简报与开发提示词已成功生成。</span>
+                            </div>
+                        </div>
+                        <div class="result-toolbar-actions">
+                            <button class="btn btn-secondary" id="btn-copy-brief" onclick="copyText('brief-box', this)">复制简报</button>
+                            <button class="btn btn-primary" id="btn-copy-prompt" onclick="copyText('prompt-content', this)">复制提示词</button>
+                            <button class="btn btn-secondary" id="btn-new-session" onclick="resetSession()">开启新会话</button>
+                        </div>
+                    </div>
+
+                    <div class="brief-layout">
+                        <div class="document-box stagger-3" id="brief-box"></div>
+                        <div class="document-box stagger-4" id="prompt-box">
+                            <div class="document-box-header">
+                                <h3>提供给 AI 的开发提示词</h3>
+                                <button class="btn btn-secondary btn-small" onclick="copyText('prompt-content', this)">复制</button>
+                            </div>
+                            <pre><code id="prompt-content"></code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <div class="toast" id="toast">已复制</div>
+
+    <script>
+        /* ==========================================================================
+           数据状态与字典
+           ========================================================================== */
+        const state = {
+            idea: '',
+            parsed: { type: 'general', typeName: '通用网页', traits: [] },
+            direction: null,
+            keep: [],
+            avoid: [],
+            baseMap: {
+                editorial: { s: 90, w: 20, e: 20, m: 20, d: 30 },
+                human:     { s: 70, w: 75, e: 50, m: 60, d: 50 },
+                expressive:{ s: 40, w: 50, e: 90, m: 85, d: 80 }
+            },
+            currentMap: { s: 50, w: 50, e: 50, m: 50, d: 50 },
+            branch: null,
+            step3Answer: null,
+            detectedVariables: {},
+            clarificationQuestions: [],
+            clarificationIndex: 0,
+            clarificationAnswers: []
+        };
+
+        const textMaps = {
+            dirNames: { editorial: "编辑式科技", human: "人文数字", expressive: "张力界面" },
+            keepNames: { keep_grid: "编辑式网格", keep_warm: "暖色调", keep_motion: "响应式动效", keep_typo: "醒目排版", keep_minimal: "极简装饰", keep_personal: "个人细节" },
+            avoidNames: { avoid_gradient: "蓝紫渐变", avoid_particles: "粒子效果", avoid_glass: "玻璃拟态", avoid_rounded: "过度圆角", avoid_ai: "常见 AI 风格" },
+            traitsDict: {
+                'portfolio': '作品集', 'ecommerce': '电商', 'event': '活动', 'product': '工具', 'general': '项目',
+                'tech': '科技', 'warm': '温暖', 'minimal': '极简', 'expressive': '个性', 'professional': '专业', 'dark': '深色'
+            }
+        };
+
+        /* ==========================================================================
+           全局页面推进系统 (WAAPI)
+           ========================================================================== */
+        let isNavigating = false;
+        const DUR_PAGE = 720;
+        const EASE_PUSH = 'cubic-bezier(0.16, 1, 0.3, 1)';
+
+        async function transitionStage(fromId, toId, direction = 'forward') {
+            if (isNavigating) return;
+            isNavigating = true;
+
+            const fromEl = document.getElementById(fromId);
+            const toEl = document.getElementById(toId);
+            const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            
+            // 准备新页面
+            toEl.style.display = 'block';
+            toEl.style.visibility = 'hidden';
+
+            // 等待 DOM 渲染
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+
+            toEl.style.visibility = 'visible';
+
+            // 提取子元素，准备层级 stagger 动画
+            const staggers = toEl.querySelectorAll('[class*="stagger-"]');
+            staggers.forEach(el => {
+                el.style.opacity = '0';
+                el.style.transform = isReduced ? 'none' : 'translateY(14px)';
+            });
+
+            const forward = direction === 'forward';
+            const distance = isReduced ? '24px' : '22vw';
+            const inDistance = isReduced ? '24px' : '26vw';
+
+            // 动画关键帧定义
+            const fromFrames = forward ? [
+                { transform: 'translate3d(0,0,0) scale(1)', opacity: 1 },
+                { transform: isReduced ? `translate3d(-${distance},0,0)` : `translate3d(-10vw,0,0) scale(0.98)`, opacity: 0.92, offset: 0.55 },
+                { transform: isReduced ? `translate3d(-${distance},0,0)` : `translate3d(-${distance},0,0) scale(0.96)`, opacity: 0 }
+            ] : [
+                { transform: 'translate3d(0,0,0) scale(1)', opacity: 1 },
+                { transform: isReduced ? `translate3d(${inDistance},0,0)` : `translate3d(${inDistance},0,0) scale(0.985)`, opacity: 0 }
+            ];
+
+            const toFrames = forward ? [
+                { transform: isReduced ? `translate3d(${inDistance},0,0)` : `translate3d(${inDistance},0,0) scale(0.985)`, opacity: 0 },
+                { transform: 'translate3d(0,0,0) scale(1)', opacity: 1 }
+            ] : [
+                { transform: isReduced ? `translate3d(-${distance},0,0)` : `translate3d(-${distance},0,0) scale(0.96)`, opacity: 0 },
+                { transform: 'translate3d(0,0,0) scale(1)', opacity: 1 }
+            ];
+
+            const animOptions = { duration: isReduced ? 220 : DUR_PAGE, easing: EASE_PUSH, fill: 'forwards' };
+
+            // 执行转场
+            const fromAnim = fromEl.animate(fromFrames, animOptions);
+            const toAnim = toEl.animate(toFrames, animOptions);
+
+            await Promise.all([fromAnim.finished, toAnim.finished]);
+
+            // 清理状态
+            fromAnim.cancel(); toAnim.cancel();
+            fromEl.style.display = 'none';
+            fromEl.style.transform = ''; fromEl.style.opacity = '';
+            toEl.style.transform = ''; toEl.style.opacity = '';
+
+            // 执行轻量级层级出现
+            if (staggers.length > 0) {
+                staggers.forEach((el) => {
+                    // 获取 class 中的序号作为延迟参数
+                    const match = el.className.match(/stagger-(\d)/);
+                    const delayNum = match ? parseInt(match[1]) : 1;
+                    
+                    el.animate([
+                        { transform: isReduced ? 'none' : 'translateY(14px)', opacity: 0 },
+                        { transform: 'translateY(0)', opacity: 1 }
+                    ], {
+                        duration: 320,
+                        delay: delayNum * 60,
+                        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                        fill: 'forwards'
+                    });
+                });
+            }
+
+            isNavigating = false;
+        }
+
+        /* ==========================================================================
+           Result Rail 更新系统
+           ========================================================================== */
+        function updateRail(blockId, textId, contentHtml, isEmpty = false) {
+            const block = document.getElementById(blockId);
+            const textEl = document.getElementById(textId);
+            if(!block || !textEl) return;
+
+            textEl.innerHTML = contentHtml;
+            if (isEmpty) {
+                textEl.classList.add('rail-empty');
+            } else {
+                textEl.classList.remove('rail-empty');
+            }
+
+            // 触发短暂高亮
+            block.animate([
+                { backgroundColor: 'rgba(194, 78, 54, 0.08)', transform: 'translateY(4px)', borderColor: 'rgba(194, 78, 54, 0.2)' },
+                { backgroundColor: 'transparent', transform: 'translateY(0)', borderColor: 'transparent' }
+            ], { duration: 600, easing: EASE_PUSH });
+        }
+
+        /* ==========================================================================
+           Intent Map 更新系统 (ScaleX)
+           ========================================================================== */
+        function updateIntentBars() {
+            ['s','w','e','m','d'].forEach(k => {
+                const newVal = state.currentMap[k];
+                
+                // 主工作区 Intent
+                updateSingleBar(`im-${k}`, `iv-${k}`, `id-${k}`, newVal);
+                // Rail 内 Intent
+                updateSingleBar(`ri-${k}`, `rv-${k}`, null, newVal);
+            });
+        }
+
+        function updateSingleBar(fillId, valId, deltaId, newVal) {
+            const fill = document.getElementById(fillId);
+            const valEl = document.getElementById(valId);
+            if (!fill || !valEl) return;
+
+            const oldValStr = valEl.innerText;
+            const oldVal = parseInt(oldValStr) || 50;
+            
+            if (oldVal === newVal) return;
+
+            fill.animate([
+                { transform: `scaleX(${oldVal / 100})` },
+                { transform: `scaleX(${newVal / 100})` }
+            ], { duration: 340, easing: EASE_PUSH, fill: 'forwards' });
+            
+            fill.style.transform = `scaleX(${newVal / 100})`;
+            valEl.innerText = newVal;
+
+            // 仅为主区域处理 Delta
+            if (deltaId) {
+                const delta = document.getElementById(deltaId);
+                const diff = newVal - oldVal;
+                delta.innerText = diff > 0 ? `+${diff}` : diff;
+                delta.className = `intent-delta ${diff > 0 ? 'pos' : 'neg'}`;
+                
+                delta.animate([
+                    { opacity: 0, transform: 'translateY(4px)' },
+                    { opacity: 1, transform: 'translateY(0)', offset: 0.15 },
+                    { opacity: 1, transform: 'translateY(0)', offset: 0.8 },
+                    { opacity: 0, transform: 'translateY(-4px)' }
+                ], { duration: 700 });
+            }
+        }
+
+        /* ==========================================================================
+           步骤逻辑控制
+           ========================================================================== */
+        
+        // A11y
+        function handleA11y(e, el) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); } }
+
+        // Step 1
+        const ideaInput = document.getElementById('idea-input');
+        ideaInput.addEventListener('input', (e) => {
+            document.getElementById('btn-explore').disabled = e.target.value.trim().length === 0;
+        });
+
+        function submitStep1() {
+            state.idea = ideaInput.value.trim();
+            const lower = state.idea.toLowerCase();
+            
+            // 简单关键词解析
+            state.parsed.traits = [];
+            if (/portfolio|作品集/.test(lower)) { state.parsed.type = 'portfolio'; state.parsed.typeName = '作品集'; state.parsed.traits.push('portfolio');}
+            else if (/ecommerce|电商/.test(lower)) { state.parsed.type = 'ecommerce'; state.parsed.typeName = '电商'; state.parsed.traits.push('ecommerce');}
+            else if (/event|活动/.test(lower)) { state.parsed.type = 'event'; state.parsed.typeName = '活动'; state.parsed.traits.push('event');}
+            else if (/product|tool|工具/.test(lower)) { state.parsed.type = 'product'; state.parsed.typeName = '工具'; state.parsed.traits.push('product');}
+            
+            if (/tech|科技/.test(lower)) state.parsed.traits.push('tech');
+            if (/warm|human|亲和/.test(lower)) state.parsed.traits.push('warm');
+            if (/minimal|极简/.test(lower)) state.parsed.traits.push('minimal');
+            if (/expressive|bold|个性/.test(lower)) state.parsed.traits.push('expressive');
+            
+            let displayTraits = state.parsed.traits.map(t => textMaps.traitsDict[t] || t);
+            let railHtml = state.idea.length > 30 ? state.idea.substring(0, 30) + '...' : state.idea;
+            if(displayTraits.length > 0) railHtml += `<br><span style="color:var(--accent); font-size: 0.8125rem;">识别: ${displayTraits.join(', ')}</span>`;
+
+            updateRail('rail-b-idea', 'r-idea', railHtml);
+            updateRail('rail-b-prog', 'r-prog', '第 2 步 / 共 4 步');
+            
+            transitionStage('step-1', 'step-2', 'forward');
+        }
+
+        // Step 2
+        function selectDirection(dir, element) {
+            state.direction = dir;
+            
+            // 视觉重置
+            document.querySelectorAll('#directions-grid .card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('directions-grid').classList.add('has-selected');
+            
+            element.classList.add('selected');
+            document.getElementById('btn-continue-2').disabled = false;
+            
+            // 更新 Rail
+            updateRail('rail-b-dir', 'r-dir', textMaps.dirNames[dir]);
+            
+            calculateMap();
+        }
+
+        function toggleTag(element, type) {
+            element.classList.toggle('active');
+            const dataId = element.getAttribute('data-id');
+            const arr = state[type];
+            
+            if (element.classList.contains('active')) {
+                if(!arr.includes(dataId)) arr.push(dataId);
+            } else {
+                const index = arr.indexOf(dataId);
+                if (index > -1) arr.splice(index, 1);
+            }
+            
+            // 更新 Rail
+            const textMap = type === 'keep' ? textMaps.keepNames : textMaps.avoidNames;
+            const railId = type === 'keep' ? 'rail-b-keep' : 'rail-b-avoid';
+            const railTextId = type === 'keep' ? 'r-keep' : 'r-avoid';
+            
+            const railHtml = arr.length > 0 ? arr.map(k => textMap[k]).join('<br>') : '无';
+            updateRail(railId, railTextId, railHtml, arr.length === 0);
+
+            if(state.direction) calculateMap();
+        }
+
+        function calculateMap() {
+            if(!state.direction) return;
+            let { s, w, e, m, d } = state.baseMap[state.direction];
+            
+            if(state.keep.includes('keep_grid')) { s+=15; d-=5; }
+            if(state.keep.includes('keep_warm')) { w+=20; }
+            if(state.keep.includes('keep_motion')) { m+=20; }
+            if(state.keep.includes('keep_typo')) { e+=15; d+=5; }
+            if(state.keep.includes('keep_minimal')) { d-=20; s+=5; }
+            if(state.keep.includes('keep_personal')) { w+=10; e+=10; }
+            if(state.avoid.includes('avoid_particles')) { m-=10; d-=10; }
+            if(state.avoid.includes('avoid_glass')) { s+=5; }
+
+            const clamp = val => Math.max(0, Math.min(100, val));
+            state.currentMap = { s: clamp(s), w: clamp(w), e: clamp(e), m: clamp(m), d: clamp(d) };
+
+            updateIntentBars();
+        }
+
+        function submitStep2() {
+            setupStep3();
+            updateRail('rail-b-prog', 'r-prog', '第 3 步 / 共 4 步');
+            transitionStage('step-2', 'step-3', 'forward');
+        }
+
+        // Step 3 — Dynamic 3-question clarification
+        const variablePriority = {
+            goal: 100,
+            audience: 90,
+            priority: 85,
+            personality: 75,
+            density: 65,
+            motion: 55
+        };
+
+        const questionBank = {
+            goal: {
+                label: 'Goal',
+                question: '这个页面最重要的任务是什么？',
+                context: '你的输入里已经描述了项目，但核心成功标准还不够明确。',
+                options: [
+                    { value: 'understand', label: '让用户快速理解', effects: { s: 12, d: -8 } },
+                    { value: 'impression', label: '建立强烈第一印象', effects: { e: 16, d: 6 } },
+                    { value: 'action', label: '引导用户采取行动', effects: { s: 8, e: 6 } }
+                ]
+            },
+            audience: {
+                label: 'Audience',
+                question: '你最希望谁首先理解这个页面？',
+                context: '目标受众会直接影响信息层级、语气和视觉表达。',
+                options: [
+                    { value: 'consumer', label: '普通消费者', effects: { w: 12, s: -4 } },
+                    { value: 'professional', label: '专业用户', effects: { s: 14, d: -4 } },
+                    { value: 'client', label: '潜在客户 / 招聘者', effects: { s: 10, e: 6 } }
+                ]
+            },
+            personality: {
+                label: 'Personality',
+                question: '你希望它首先给人什么感觉？',
+                context: '当前输入还没有形成足够明确的视觉人格。',
+                options: [
+                    { value: 'calm', label: '冷静、专业', effects: { s: 10, w: -8, e: -8 } },
+                    { value: 'warm', label: '友好、有温度', effects: { w: 16, e: 4 } },
+                    { value: 'bold', label: '大胆、有记忆点', effects: { e: 18, m: 8 } }
+                ]
+            },
+            density: {
+                label: 'Density',
+                question: '你更希望用户如何浏览内容？',
+                context: '内容浏览方式还没有被定义，这会影响信息密度与页面节奏。',
+                options: [
+                    { value: 'scan', label: '快速扫读', effects: { s: 10, d: -14 } },
+                    { value: 'progressive', label: '逐步深入', effects: { s: 6, d: 2 } },
+                    { value: 'immersive', label: '沉浸式探索', effects: { e: 10, d: 14, m: 8 } }
+                ]
+            },
+            motion: {
+                label: 'Motion',
+                question: '动效应该承担什么角色？',
+                context: '你还没有说明交互反馈在整体体验里的重要程度。',
+                options: [
+                    { value: 'feedback', label: '只提供必要反馈', effects: { m: -16, s: 6 } },
+                    { value: 'progression', label: '引导页面推进', effects: { m: 10, s: 6 } },
+                    { value: 'experience', label: '成为主要体验的一部分', effects: { m: 22, e: 10 } }
+                ]
+            },
+            priority: {
+                label: 'Priority',
+                question: '用户进入后最应该先看到什么？',
+                context: '当前内容重点仍然模糊，需要确定首屏优先级。',
+                optionsByType: {
+                    portfolio: [
+                        { value: 'identity', label: '我是谁', effects: { w: 8, s: 4 } },
+                        { value: 'projects', label: '我的项目', effects: { s: 12, e: 4 } },
+                        { value: 'skills', label: '我的能力', effects: { s: 10, d: -4 } }
+                    ],
+                    ecommerce: [
+                        { value: 'products', label: '产品本身', effects: { s: 10, d: -4 } },
+                        { value: 'brand', label: '品牌价值', effects: { e: 12, w: 8 } },
+                        { value: 'conversion', label: '优惠 / 转化', effects: { s: 12, e: 6 } }
+                    ],
+                    event: [
+                        { value: 'info', label: '活动信息', effects: { s: 12, d: -6 } },
+                        { value: 'atmosphere', label: '活动氛围', effects: { e: 14, w: 6 } },
+                        { value: 'register', label: '报名入口', effects: { s: 12, e: 4 } }
+                    ],
+                    product: [
+                        { value: 'value', label: '产品能做什么', effects: { s: 12 } },
+                        { value: 'how', label: '如何使用', effects: { s: 10, d: -4 } },
+                        { value: 'why', label: '为什么值得使用', effects: { e: 8, w: 6 } }
+                    ],
+                    general: [
+                        { value: 'idea', label: '核心概念', effects: { e: 8 } },
+                        { value: 'content', label: '主要内容', effects: { s: 10 } },
+                        { value: 'action', label: '下一步行动', effects: { s: 8, e: 4 } }
+                    ]
+                }
+            }
+        };
+
+        function detectKnownVariables() {
+            const input = state.idea.toLowerCase();
+            const known = {
+                goal: false,
+                audience: false,
+                priority: false,
+                personality: false,
+                density: false,
+                motion: false
+            };
+
+            if (/购买|购买效率|转化|报名|联系|预约|下载|注册|理解|展示|介绍|建立.*印象|目标|目的/.test(input)) {
+                known.goal = true;
+            }
+
+            if (/招聘|hr|面试官|客户|消费者|用户|设计师|学生|专业人士|年轻人|品牌方|企业/.test(input)) {
+                known.audience = true;
+            }
+
+            if (/重点|首先|优先|主打|核心展示|主要展示|先看到|项目|产品|能力|品牌价值/.test(input)) {
+                known.priority = true;
+            }
+
+            if (/极简|专业|高级|温暖|亲和|友好|大胆|个性|科技|未来|冷静|克制|活泼|复古|年轻/.test(input)) {
+                known.personality = true;
+            }
+
+            if (/快速浏览|快速扫读|信息密度|内容很多|内容少|沉浸|逐步|深入|极简信息|留白/.test(input)) {
+                known.density = true;
+            }
+
+            if (/动效|动画|交互|过渡|反馈|丝滑|滚动|hover|微交互|motion/.test(input)) {
+                known.motion = true;
+            }
+
+            return known;
+        }
+
+        function selectClarificationQuestions() {
+            state.detectedVariables = detectKnownVariables();
+
+            const missing = Object.keys(state.detectedVariables)
+                .filter(key => !state.detectedVariables[key])
+                .sort((a, b) => variablePriority[b] - variablePriority[a]);
+
+            // If the input is unusually complete, fill remaining slots with lower-priority
+            // variables that are still useful, but avoid asking the same type twice.
+            const fallbackOrder = ['goal', 'audience', 'priority', 'personality', 'density', 'motion'];
+            const selected = [...missing];
+
+            for (const key of fallbackOrder) {
+                if (selected.length >= 3) break;
+                if (!selected.includes(key)) selected.push(key);
+            }
+
+            state.clarificationQuestions = selected.slice(0, 3);
+            state.clarificationIndex = 0;
+            state.clarificationAnswers = [];
+        }
+
+        function getQuestionOptions(variable) {
+            const q = questionBank[variable];
+            if (variable === 'priority') {
+                return q.optionsByType[state.parsed.type] || q.optionsByType.general;
+            }
+            return q.options;
+        }
+
+        function setupStep3() {
+            selectClarificationQuestions();
+            document.getElementById('clarification-history').innerHTML = '';
+            document.getElementById('btn-generate').style.display = 'none';
+            document.getElementById('btn-next-question').style.display = 'inline-flex';
+            renderClarificationQuestion();
+            updateIntentBars();
+        }
+
+        function renderClarificationQuestion() {
+            const variable = state.clarificationQuestions[state.clarificationIndex];
+            const q = questionBank[variable];
+            const options = getQuestionOptions(variable);
+            const container = document.getElementById('dynamic-question-container');
+            const progress = document.getElementById('clarify-progress');
+            const nextBtn = document.getElementById('btn-next-question');
+
+            state.step3Answer = null;
+            progress.innerText = `Question ${String(state.clarificationIndex + 1).padStart(2, '0')} / 03`;
+            nextBtn.disabled = true;
+            nextBtn.innerText = state.clarificationIndex === 2 ? '确认最后一项' : '下一题';
+
+            container.innerHTML = `
+                <span class="question-variable">${q.label}</span>
+                <h3 class="h-h2" style="margin-bottom:1rem;">${q.question}</h3>
+                <div class="question-context">${q.context}</div>
+                <div class="choice-grid">
+                    ${options.map(opt => `
+                        <div class="choice-card"
+                             role="button"
+                             tabindex="0"
+                             data-value="${opt.value}"
+                             onclick="selectClarificationOption('${variable}', '${opt.value}', this)"
+                             onkeydown="handleA11y(event, this)">
+                            ${opt.label}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            container.animate([
+                { opacity: 0, transform: 'translate3d(46px,0,0)' },
+                { opacity: 1, transform: 'translate3d(0,0,0)' }
+            ], {
+                duration: 420,
+                easing: EASE_PUSH
+            });
+        }
+
+        function selectClarificationOption(variable, value, el) {
+            const options = getQuestionOptions(variable);
+            const selected = options.find(opt => opt.value === value);
+            if (!selected) return;
+
+            state.step3Answer = {
+                variable,
+                value,
+                label: selected.label,
+                effects: selected.effects || {}
+            };
+
+            el.parentElement.querySelectorAll('.choice-card').forEach(card => card.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('btn-next-question').disabled = false;
+        }
+
+        function applyClarificationEffects(effects) {
+            const clamp = v => Math.max(0, Math.min(100, Math.round(v)));
+            const nextMap = { ...state.currentMap };
+
+            Object.entries(effects).forEach(([key, delta]) => {
+                if (key in nextMap) nextMap[key] = clamp(nextMap[key] + delta);
+            });
+
+            state.currentMap = nextMap;
+            updateIntentBars();
+        }
+
+        async function submitClarificationAnswer() {
+            if (!state.step3Answer) return;
+
+            const answer = { ...state.step3Answer };
+            state.clarificationAnswers.push(answer);
+            applyClarificationEffects(answer.effects);
+
+            const history = document.getElementById('clarification-history');
+            const item = document.createElement('div');
+            item.className = 'clarification-history-item';
+            item.innerHTML = `
+                <span>${questionBank[answer.variable].label}</span>
+                <strong>${answer.label}</strong>
+            `;
+            history.appendChild(item);
+
+            if (state.clarificationIndex < 2) {
+                const container = document.getElementById('dynamic-question-container');
+                const out = container.animate([
+                    { opacity: 1, transform: 'translate3d(0,0,0)' },
+                    { opacity: 0, transform: 'translate3d(-46px,0,0)' }
+                ], {
+                    duration: 260,
+                    easing: EASE_PUSH,
+                    fill: 'forwards'
+                });
+
+                await out.finished;
+                out.cancel();
+
+                state.clarificationIndex += 1;
+                renderClarificationQuestion();
+            } else {
+                document.getElementById('clarify-progress').innerText = '3 / 3 已确认';
+                document.getElementById('dynamic-question-container').innerHTML = `
+                    <span class="question-variable">Complete</span>
+                    <h3 class="h-h2" style="margin-bottom:0.75rem;">三个关键变量已经补齐。</h3>
+                    <p class="t-body">现在可以将当前方向、偏好与澄清结果收束为可执行简报。</p>
+                `;
+
+                document.getElementById('btn-next-question').style.display = 'none';
+                document.getElementById('btn-generate').style.display = 'inline-flex';
+            }
+        }
+
+        /* ==========================================================================
+           Loading & Step 4 & Reset
+           ========================================================================== */
+        const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        async function submitStep3() {
+            updateRail('rail-b-prog', 'r-prog', 'Processing...');
+            await transitionStage('step-3', 'step-loading', 'forward');
+            await runLoading();
+        }
+
+        async function activateLoadingStep(num) {
+            const el = document.getElementById(`load-${num}`);
+            if(el) el.classList.add('active');
+            if(num > 1) {
+                const prev = document.getElementById(`load-${num-1}`);
+                if(prev) {
+                    prev.classList.remove('active');
+                    prev.classList.add('completed');
+                }
+            }
+        }
+
+        async function runLoading() {
+            const desc = document.getElementById('loading-desc');
+            
+            await wait(100);
+            await activateLoadingStep(1);
+            desc.innerText = "提取深层结构意图...";
+            await wait(420);
+            
+            await activateLoadingStep(2);
+            desc.innerText = "映射组件与视觉规则...";
+            await wait(420);
+            
+            await activateLoadingStep(3);
+            desc.innerText = "验证一致性...";
+            await wait(420);
+            
+            await activateLoadingStep(4);
+            desc.innerText = "就绪。";
+            await wait(300);
+
+            buildFinalOutput();
+            
+            // Rail 退让动效
+            const rail = document.getElementById('result-rail');
+            updateRail('rail-b-prog', 'r-prog', '<span style="color:var(--success); font-weight:700;">Completed</span>');
+            rail.style.opacity = '0.88';
+            rail.style.transform = 'scale(0.98)';
+            rail.style.transformOrigin = 'left top';
+
+            await transitionStage('step-loading', 'step-4', 'forward');
+        }
+
+        function escapeHTML(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function getGoalSummary() {
+            const typeSummaries = {
+                portfolio: '创建一个能够清晰展示个人定位与项目能力的作品集网站。',
+                ecommerce: '创建一个兼顾商品理解、品牌表达与购买效率的电商网站。',
+                event: '创建一个让用户快速理解活动信息并完成报名的活动网站。',
+                product: '创建一个让用户快速理解核心价值并开始使用的数字工具。',
+                general: '将当前想法转化为一个结构清晰、视觉方向明确的网站体验。'
+            };
+            return typeSummaries[state.parsed.type] || typeSummaries.general;
+        }
+
+        function buildFinalOutput() {
+            const keeps = state.keep.map(id => textMaps.keepNames[id]).join('、') || '无';
+            const avoids = state.avoid.map(id => textMaps.avoidNames[id]).join('、') || '无';
+            const escapedIdea = escapeHTML(state.idea);
+            const goalSummary = getGoalSummary();
+            const directionName = textMaps.dirNames[state.direction];
+
+            const keepTagsHtml = state.keep.length
+                ? state.keep.map(id => `<span class="constraint-tag">${textMaps.keepNames[id]}</span>`).join('')
+                : '<span class="constraint-empty">无</span>';
+            const avoidTagsHtml = state.avoid.length
+                ? state.avoid.map(id => `<span class="constraint-tag constraint-tag-avoid">${textMaps.avoidNames[id]}</span>`).join('')
+                : '<span class="constraint-empty">无</span>';
+
+            const structureMap = {
+                portfolio: "<li>首屏介绍与个人定位</li><li>精选项目全屏网格</li><li>深入的案例研究页面</li><li>关于我与核心能力介绍</li><li>极简的联系方式区块</li>",
+                ecommerce: "<li>首页英雄区与核心价值主张</li><li>产品品类导航</li><li>本月特色推荐产品</li><li>产品详情与购买操作</li><li>用户评价与信任背书</li>",
+                event: "<li>活动时间地点与核心介绍</li><li>互动式日程安排</li><li>演讲嘉宾卡片介绍</li><li>一键注册与票务购买</li><li>常见问题解答 (FAQ)</li>",
+                product: "<li>产品核心功能动态演示</li><li>功能亮点拆解</li><li>客户案例与社会认同</li><li>透明的定价方案</li><li>全局页脚与支持链接</li>",
+                general: "<li>首屏核心信息传达</li><li>背景上下文陈述区块</li><li>主要内容展示区</li><li>操作引导 (Call to Action)</li><li>常规页脚</li>"
+            };
+            const pageStructure = structureMap[state.parsed.type] || structureMap.general;
+            const motionStrategy = state.currentMap.m < 40
+                ? "克制，仅限于悬停状态。避免打断用户心流。"
+                : state.currentMap.m > 70
+                    ? "强烈且有目的的过渡。具有意义的布局层级移动。"
+                    : "响应式且利落。针对交互提供适度的视觉反馈。";
+
+            const clarificationHtml = state.clarificationAnswers.length
+                ? state.clarificationAnswers.map(answer => `
+                    <div class="clarification-history-item">
+                        <span>${questionBank[answer.variable].label}</span>
+                        <strong>${answer.label}</strong>
+                    </div>
+                `).join('')
+                : '<span class="constraint-empty">暂无</span>';
+
+            const briefHTML = `
+                <h3 style="margin-top:0;">1. 项目核心目标</h3>
+                <p class="goal-summary">${goalSummary}</p>
+                <div class="goal-direction">视觉基准：<strong>${directionName}</strong></div>
+                <details class="original-input">
+                    <summary>查看原始输入</summary>
+                    <p>${escapedIdea}</p>
+                </details>
+
+                <div class="brief-meta-grid">
+                    <div class="brief-meta-item"><span class="brief-meta-label">Project Type</span><strong>${state.parsed.typeName}</strong></div>
+                    <div class="brief-meta-item"><span class="brief-meta-label">Direction</span><strong>${directionName}</strong></div>
+                    <div class="brief-meta-item"><span class="brief-meta-label">Motion</span><strong>${Math.round(state.currentMap.m)}/100</strong></div>
+                </div>
+
+                <h3>2. 关键体验原则</h3>
+                <p>${motionStrategy}</p>
+
+                <h3>3. 视觉约束</h3>
+                <div class="constraint-group"><span class="constraint-label">Must Keep</span><div class="constraint-tags">${keepTagsHtml}</div></div>
+                <div class="constraint-group"><span class="constraint-label">Avoid</span><div class="constraint-tags">${avoidTagsHtml}</div></div>
+
+                <h3>4. 建议页面结构</h3>
+                <ul>${pageStructure}</ul>`;
+            document.getElementById('brief-box').innerHTML = briefHTML;
+
+            const promptText = `CONTEXT:
+You are an expert front-end developer and UI/UX designer. Build a complete, functional single-page prototype based on the following precise brief.
+
+PROJECT GOAL:
+Translate this vague idea into reality: "${state.idea}"
+Inferred Type: ${state.parsed.type}
+
+VISUAL & INTERACTION DIRECTION:
+- Base Aesthetic: ${directionName}
+- Structure level: ${Math.round(state.currentMap.s)}/100
+- Expression level: ${Math.round(state.currentMap.e)}/100
+- Motion intensity: ${Math.round(state.currentMap.m)}/100
+
+STRICT STYLING CONSTRAINTS:
+- MUST KEEP: ${keeps}
+- STRICTLY AVOID: ${avoids}
+
+CLARIFIED DECISIONS:
+${state.clarificationAnswers.map(answer => `- ${questionBank[answer.variable].label}: ${answer.label}`).join('\n')}
+
+PAGE STRUCTURE REQUIREMENTS:
+- Create semantic sections based on the inferred type.
+- Focus on clear information hierarchy and visible interaction feedback.
+
+TECHNICAL REQUIREMENTS:
+- Use pure vanilla HTML, CSS, and JS in ONE index.html file.
+- Use native CSS Variables (:root) for theme control.
+- Ensure semantic HTML5 tags and accessibility focus states.
+- Output complete, production-ready code.`;
+            document.getElementById('prompt-content').innerText = promptText;
+        }
+
+        function copyText(elementId, btnElement) {
+            let textToCopy = document.getElementById(elementId).innerText; 
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const oldText = btnElement.innerText;
+                btnElement.innerText = "已复制";
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => { 
+                    toast.classList.remove('show'); 
+                    btnElement.innerText = oldText;
+                }, 2000);
+            });
+        }
+
+        async function resetSession() {
+            // 1. 清空 state
+            state.idea = '';
+            state.parsed = { type: 'general', typeName: '通用网页', traits: [] };
+            state.direction = null;
+            state.keep = [];
+            state.avoid = [];
+            state.currentMap = { s: 50, w: 50, e: 50, m: 50, d: 50 };
+            state.branch = null;
+            state.step3Answer = null;
+            state.detectedVariables = {};
+            state.clarificationQuestions = [];
+            state.clarificationIndex = 0;
+            state.clarificationAnswers = [];
+
+            // 2. 清空输入框
+            const ideaInput = document.getElementById('idea-input');
+            ideaInput.value = '';
+
+            // 3. 重置方向卡片
+            document.querySelectorAll('#directions-grid .card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('directions-grid').classList.remove('has-selected');
+
+            // 4. 重置 Tags
+            document.querySelectorAll('.tags-container .tag').forEach(t => t.classList.remove('active'));
+
+            // 5. 重置按钮
+            document.getElementById('btn-explore').disabled = true;
+            document.getElementById('btn-continue-2').disabled = true;
+            document.getElementById('btn-generate').style.display = 'none';
+            document.getElementById('btn-next-question').style.display = 'inline-flex';
+            document.getElementById('btn-next-question').disabled = true;
+            document.getElementById('clarification-history').innerHTML = '';
+            document.getElementById('clarify-progress').innerText = 'Question 01 / 03';
+
+            document.querySelectorAll('.loading-step').forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+
+            // 6. 重置 Rail
+            updateRail('rail-b-idea', 'r-idea', '尚未输入', true);
+            updateRail('rail-b-dir', 'r-dir', '尚未选择', true);
+            updateRail('rail-b-keep', 'r-keep', '无', true);
+            updateRail('rail-b-avoid', 'r-avoid', '无', true);
+            updateRail('rail-b-prog', 'r-prog', '第 1 步 / 共 4 步');
+            updateIntentBars(); // Maps 回到 50
+
+            // 7. 重置 Rail 样式
+            const rail = document.getElementById('result-rail');
+            rail.style.opacity = '1';
+            rail.style.transform = 'none';
+
+            // 8. 清空文本区
+            document.getElementById('brief-box').innerHTML = '';
+            document.getElementById('prompt-content').innerText = '';
+
+            // 9. 反向转场回 Step 1
+            await transitionStage('step-4', 'step-1', 'backward');
+
+            // 10. 恢复滚动并聚焦
+            const step1Stage = document.getElementById('step-1');
+            step1Stage.scrollTop = 0;
+            ideaInput.focus();
+        }
+    </script>
+</body>
+</html>
