@@ -24,6 +24,18 @@
 .section{min-height:80vh;padding:120px 48px;border-top:1px solid var(--border);display:grid;grid-template-columns:minmax(180px,280px) minmax(0,1fr);gap:72px}.section-kicker{font-size:10px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase}.section h2{font-size:clamp(34px,5vw,72px);font-weight:500;letter-spacing:-.04em;line-height:1}.section-body{max-width:850px}.about-copy{font-size:clamp(18px,2vw,28px);line-height:1.5;max-width:780px;margin-bottom:46px}.about-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.info-block{padding-top:14px;border-top:1px solid var(--border)}.info-block h3{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:400;margin-bottom:14px}.info-block p{font-size:14px;line-height:1.8;color:#C3C3BC}.contact-section{min-height:70vh;align-items:end}.contact-main{font-size:clamp(34px,5vw,72px);line-height:1.05;letter-spacing:-.04em}.contact-meta{margin-top:32px;display:flex;gap:22px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.contact-meta a{color:var(--muted);transition:color .22s var(--ease)}.contact-meta a:hover{color:var(--accent)}.case-placeholder{min-height:50vh;padding:100px 48px;border-top:1px solid var(--border);background:var(--surface)}.case-placeholder h2{font-size:clamp(28px,4vw,52px);font-weight:500;margin-bottom:16px}.case-placeholder p{color:var(--muted);max-width:720px}@media(max-width:768px){.section{padding:90px 24px;grid-template-columns:1fr;gap:34px}.about-grid{grid-template-columns:1fr}.case-placeholder{padding:78px 24px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.machine-bg{transform:none!important}.project-item{filter:none!important}}
 </style>
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-F38WFRP727"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-F38WFRP727', {
+    anonymize_ip: true
+  });
+</script>
+
 </head>
 <body>
 <div class="cursor" id="cursor"><span></span></div>
@@ -40,4 +52,48 @@ const canvas=document.getElementById('data-field'),home=document.getElementById(
 const projects=[{id:'01',title:'AFTERHOUR',subtitle:'城市夜间聚会文化视觉品牌',tag:'BRAND VISUAL SYSTEM',skills:'品牌视觉 / 主视觉 / 空间与应用延展',url:'projects/afterhour/'},{id:'02',title:'FOLDIN',subtitle:'以“折叠”为决策机制的纸品思考工具',tag:'BRAND + PRODUCT SYSTEM',skills:'品牌系统 / 产品机制 / 包装与应用',url:'projects/foldin/'},{id:'03',title:'WILDPAW / 跃野',subtitle:'宠物零食品牌视觉系统',tag:'PET FOOD BRANDING',skills:'品牌识别 / 包装设计 / 产品应用',url:'projects/wildpaw/'},{id:'04',title:'FROM BLUR TO BRIEF',subtitle:'将模糊想法转化为结构化创意简报的 AI 工具',tag:'AI PRODUCT / INTERFACE',skills:'产品逻辑 / UI界面 / 交互原型',url:'projects/from-blur-to-brief/'},{id:'05',title:'AI ART DIRECTION',subtitle:'人工智能辅助艺术指导与图像制作',tag:'AIGC / VISUAL EXPLORATION',skills:'艺术指导 / 图像生成 / 视觉系统化',url:'projects/ai-art-direction/'}];const state={position:0,velocity:0,currentIndex:0,acquiringIndex:null,stableIndex:null,isDragging:false,pointerId:null,lastX:0,lastTime:performance.now(),phase:'LOCKED',soundOn:false,stableTimer:null,lockTimer:null};const cfg={spacing:()=>innerWidth<768?innerWidth*.76:innerWidth*.46,friction:.855,springK:178,dampingC:27.2,weakRange:.36,acquireDist:.18,acquireVel:520,lockDist:5,lockVel:72};const tc=document.getElementById('trackContainer'),dw=document.getElementById('projectDetails'),mb=document.getElementById('machineBg'),tn=document.getElementById('trackNode'),ts=document.getElementById('trackStatus'),tss=document.getElementById('trackSubstatus'),st=document.getElementById('soundToggle');const pnodes=[],dnodes=[];let audioCtx=null;projects.forEach((p,i)=>{const el=document.createElement('article');el.className='project-item';el.innerHTML=`<div class="target-brackets"><i class="bracket tl"></i><i class="bracket tr"></i><i class="bracket bl"></i><i class="bracket br"></i></div><div class="project-number">${p.id} / 05</div><div class="project-title"><span>${p.title}</span><span class="distort-layer">${p.title}</span></div><div class="project-subtitle">${p.subtitle}</div><div class="project-tag">${p.tag}</div><div class="scanline-container"><div class="h-scanline"></div></div>`;tc.appendChild(el);pnodes.push(el);const d=document.createElement('div');d.className='detail';d.innerHTML=`<div class="meta">${p.tag}</div><div class="skills">${p.skills}</div><a class="view-btn" href="${p.url}">查看项目&nbsp; VIEW PROJECT →</a>`;dw.appendChild(d);dnodes.push(d);if(!isCoarse){d.querySelector('.view-btn').addEventListener('mouseenter',()=>setCursorLabel('VIEW'));d.querySelector('.view-btn').addEventListener('mouseleave',()=>setCursorLabel(''))}});
 function initAudio(){if(!audioCtx)audioCtx=new(AudioContext||webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}function playTick(){if(!state.soundOn||!audioCtx)return;const t=audioCtx.currentTime,len=Math.floor(audioCtx.sampleRate*.016),buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate),data=buf.getChannelData(0);for(let i=0;i<len;i++){const env=Math.pow(1-i/len,4);data[i]=(Math.random()*2-1)*env*.05}const src=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),gain=audioCtx.createGain();src.buffer=buf;filter.type='bandpass';filter.frequency.value=1500;filter.Q.value=.7;gain.gain.setValueAtTime(.007,t);gain.gain.exponentialRampToValueAtTime(.0001,t+.016);src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(t)}st.onclick=()=>{state.soundOn=!state.soundOn;st.textContent=state.soundOn?'ON':'OFF';st.classList.toggle('active',state.soundOn);if(state.soundOn)initAudio()};function setPhase(p){state.phase=p;if(p==='SEARCHING'){ts.textContent='SEARCHING';tss.textContent='项目索引 / 目标搜索中'}else if(p==='ACQUIRING'){ts.textContent='ACQUIRING';tss.textContent='项目识别 / 正在对齐'}}function clearEffects(){clearTimeout(state.stableTimer);clearTimeout(state.lockTimer);pnodes.forEach(n=>n.classList.remove('fire-scan','fire-distort','brackets-active','brackets-settle'));state.acquiringIndex=null;state.stableIndex=null}function startAcquisition(i){if(state.acquiringIndex===i)return;state.acquiringIndex=i;setPhase('ACQUIRING');const n=pnodes[i];n.classList.remove('fire-scan','fire-distort');void n.offsetWidth;n.classList.add('fire-scan');setTimeout(()=>{if(state.acquiringIndex===i&&!state.isDragging){n.classList.add('fire-distort');setTimeout(()=>n.classList.remove('fire-distort'),70)}},170)}function finalizeLock(i){state.phase='LOCKED';state.currentIndex=i;state.acquiringIndex=null;const n=pnodes[i];n.classList.add('brackets-active');tn.classList.add('pulse');setTimeout(()=>tn.classList.remove('pulse'),380);playTick();if(navigator.vibrate&&isCoarse)navigator.vibrate(7);dnodes.forEach((d,j)=>d.classList.toggle('active',j===i));ts.textContent=`${projects[i].id} / 05 · READY`;tss.textContent='PROJECT INDEX / TARGET LOCKED';clearTimeout(state.lockTimer);state.lockTimer=setTimeout(()=>n.classList.add('brackets-settle'),380)}function down(e){if(e.target.closest('.view-btn')||e.target.closest('.sound-toggle'))return;if(!e.target.closest('#trackContainer'))return;if(e.target.setPointerCapture)e.target.setPointerCapture(e.pointerId);state.isDragging=true;state.pointerId=e.pointerId;state.lastX=e.clientX;state.lastTime=performance.now();state.velocity=0;clearEffects();setPhase('SEARCHING');setCursorLabel('HOLD')}function move(e){if(!state.isDragging||e.pointerId!==state.pointerId)return;const now=performance.now();let dt=(now-state.lastTime)/1000;if(dt<=0)return;if(dt>.032)dt=.016;const dx=e.clientX-state.lastX;state.position-=dx;const inst=-dx/dt;state.velocity=state.velocity*.44+inst*.56;state.lastX=e.clientX;state.lastTime=now}function up(e){if(!state.isDragging||e.pointerId!==state.pointerId)return;if(e.target.releasePointerCapture)e.target.releasePointerCapture(e.pointerId);state.isDragging=false;state.pointerId=null;state.velocity=Math.max(-3600,Math.min(3600,state.velocity));state.lastTime=performance.now();setCursorLabel(e.pointerType==='mouse'?'DRAG':'')}tc.addEventListener('pointerdown',down);addEventListener('pointermove',move);addEventListener('pointerup',up);addEventListener('pointercancel',up);if(!isCoarse){tc.addEventListener('mouseenter',()=>!state.isDragging&&setCursorLabel('DRAG'));tc.addEventListener('mouseleave',()=>!state.isDragging&&setCursorLabel(''))}function render(now){let dt=(now-state.lastTime)/1000;if(dt>.032||dt<0)dt=.016;state.lastTime=now;const spacing=cfg.spacing(),maxPos=spacing*(projects.length-1);if(!state.isDragging){const targetIndex=Math.max(0,Math.min(projects.length-1,Math.round(state.position/spacing))),targetPos=targetIndex*spacing,dist=targetPos-state.position,absDist=Math.abs(dist),absVel=Math.abs(state.velocity);if(absDist<spacing*cfg.weakRange)state.velocity*=.955;state.velocity*=cfg.friction;if(absVel<1800||absDist>spacing*.42){let accel=dist*cfg.springK-state.velocity*cfg.dampingC;if(state.position<0)accel+=(0-state.position)*cfg.springK*2;if(state.position>maxPos)accel+=(maxPos-state.position)*cfg.springK*2;state.velocity+=accel*dt}state.position+=state.velocity*dt;if(absDist<spacing*cfg.acquireDist&&absVel<cfg.acquireVel&&state.phase!=='LOCKED'){if(state.stableIndex!==targetIndex){state.stableIndex=targetIndex;clearTimeout(state.stableTimer);state.stableTimer=setTimeout(()=>{if(state.stableIndex===targetIndex&&!state.isDragging)startAcquisition(targetIndex)},45)}}if(absDist<cfg.lockDist&&absVel<cfg.lockVel&&state.phase!=='LOCKED'){state.position=targetPos;state.velocity=0;finalizeLock(targetIndex)}}pnodes.forEach((n,i)=>{const off=i*spacing-state.position,dist=Math.abs(off/spacing),scale=Math.max(.48,1-dist*.22),opacity=Math.max(.08,1-dist*.44),blur=prefersReducedMotion?0:Math.min(4,dist*1.55);n.style.transform=`translate(-50%,-50%) translate3d(${off}px,0,0) scale(${scale})`;n.style.opacity=opacity;n.style.filter=`blur(${blur}px)`});if(!prefersReducedMotion){const skew=Math.max(-7,Math.min(7,-state.velocity*.0018));mb.style.transform=`skewX(${skew}deg) scale(1.04)`}tn.style.left=(Math.max(0,Math.min(1,state.position/(maxPos||1)))*100)+'%';requestAnimationFrame(render)}state.position=0;state.velocity=0;state.phase='LOCKED';dnodes[0].classList.add('active');pnodes[0].classList.add('brackets-active','brackets-settle');requestAnimationFrame(render)})();
 </script>
+
+<script>
+(() => {
+  function track(eventName, params = {}) {
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', eventName, params);
+    }
+  }
+
+  document.addEventListener('click', (event) => {
+    const projectLink = event.target.closest('.view-btn');
+    if (projectLink) {
+      const detail = projectLink.closest('.detail');
+      const meta = detail?.querySelector('.meta')?.textContent?.trim() || '';
+      track('portfolio_project_view', {
+        project_label: meta,
+        link_url: projectLink.href
+      });
+    }
+
+    const resumeLink = event.target.closest('a[href*="HU_FEN_RESUME_2026.pdf"]');
+    if (resumeLink) {
+      track('resume_open', {
+        link_url: resumeLink.href
+      });
+    }
+
+    const emailLink = event.target.closest('a[href^="mailto:"]');
+    if (emailLink) {
+      track('contact_email_click', {
+        email: emailLink.getAttribute('href').replace('mailto:', '')
+      });
+    }
+
+    const navLink = event.target.closest('.nav-link, .mobile-menu a');
+    if (navLink) {
+      track('navigation_click', {
+        nav_target: navLink.getAttribute('href') || ''
+      });
+    }
+  });
+})();
+</script>
+
 </body></html>
